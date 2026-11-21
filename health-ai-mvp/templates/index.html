@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Medicos AI Assistant</title>
+  <link rel="stylesheet" href="/static/medicos.css" />
+</head>
+
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <div class="brand">Medicos AI Assistant</div>
+        <div class="brand-sub">Conversational physician guidance for El Salvador</div>
+      </div>
+
+      <div class="header-actions">
+        <select id="languageSelect" class="language-select">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="pt">Português</option>
+        </select>
+
+        <button class="ghost-btn" onclick="resetMemory()">Reset Memory</button>
+      </div>
+    </header>
+
+    <main id="chatWindow" class="chat-window"></main>
+
+    <footer class="composer">
+      <textarea id="chatInput" rows="2" placeholder="Tell me what symptoms you’re having..."></textarea>
+      <button id="sendBtn" onclick="handleSend()">Send</button>
+    </footer>
+  </div>
+
+  <script>
+    let currentLanguage = "en";
+    let mode = "name";
+    let savedSymptoms = "";
+    let generatedQuestions = [];
+    let currentPage = 1;
+    let lastAnswerText = "";
+
+    const MEMORY_KEY = "medicos_ai_memory";
+
+    const UI_TEXT = {
+      en: {
+        introName: "Hi, I’m here to help you find the right type of doctor. Before we start, what should I call you?",
+        introNew: name => `Nice to meet you, ${name}. Tell me what symptoms you’re having, and I’ll ask a few thoughtful follow-up questions.`,
+        introBack: (name, lastSymptoms) => `Welcome back, ${name}. I remember you were trying to find help for ${lastSymptoms} last time. What has you feeling uncomfortable or in pain now?`,
+        introBackNoSymptoms: name => `Welcome back, ${name}. What has you feeling uncomfortable or in pain today?`,
+        nameSaved: name => `Thanks, ${name}. I’ll remember that for next time.`,
+        placeholderName: "Type your name...",
+        placeholderSymptoms: "Tell me what symptoms you’re having...",
+        placeholderAnswers: "Answer the follow-up questions here...",
+        send: "Send",
+        thinking: "Thinking",
+        followupIntro: "I’m sorry you’re dealing with that. Let me ask a few quick questions so I can better understand what kind of care may fit.",
+        recommendationIntro: "Thanks for sharing that. Here’s how I’m thinking about your symptoms and the provider matches.",
+        emergency: "Emergency Warning",
+        warningContinue: "You can continue, but urgent care may be needed.",
+        careLevel: "Suggested care level",
+        summary: "Summary",
+        providers: "Suggested providers",
+        noMatch: "I couldn’t find matching providers in the local database.",
+        city: "City",
+        category: "Category",
+        phone: "Phone",
+        languages: "Languages",
+        homeService: "Home service",
+        viewProfile: "View Profile",
+        noPhoto: "No Photo",
+        previous: "Anterior",
+        next: "Next",
+        page: "Page",
+        whyThese: "Why these providers?",
+        whyMatch: "Why this match",
+        memoryReset: "Memory reset. We can start fresh. What should I call you?"
+      },
+      es: {
+        introName: "Hola, estoy aquí para ayudarte a encontrar el tipo de médico adecuado. Antes de empezar, ¿cómo debería llamarte?",
+        introNew: name => `Mucho gusto, ${name}. Cuéntame qué síntomas tienes y te haré algunas preguntas de seguimiento.`,
+        introBack: (name, lastSymptoms) => `Bienvenido de nuevo, ${name}. Recuerdo que la vez pasada buscabas ayuda por ${lastSymptoms}. ¿Qué te incomoda o te duele ahora?`,
+        introBackNoSymptoms: name => `Bienvenido de nuevo, ${name}. ¿Qué te incomoda o te duele hoy?`,
+        nameSaved: name => `Gracias, ${name}. Lo recordaré para la próxima vez.`,
+        placeholderName: "Escribe tu nombre...",
+        placeholderSymptoms: "Cuéntame qué síntomas tienes...",
+        placeholderAnswers: "Responde aquí las preguntas de seguimiento...",
+        send: "Enviar",
+        thinking: "Pensando",
+        followupIntro: "Lamento que estés pasando por eso. Te haré unas preguntas rápidas para entender mejor qué tipo de atención podría ayudarte.",
+        recommendationIntro: "Gracias por compartir eso. Así estoy interpretando tus síntomas y las coincidencias de proveedores.",
+        emergency: "Advertencia de emergencia",
+        warningContinue: "Puedes continuar, pero podría necesitarse atención urgente.",
+        careLevel: "Nivel de atención sugerido",
+        summary: "Resumen",
+        providers: "Proveedores sugeridos",
+        noMatch: "No pude encontrar proveedores coincidentes en la base de datos local.",
+        city: "Ciudad",
+        category: "Categoría",
+        phone: "Teléfono",
+        languages: "Idiomas",
+        homeService: "Servicio a domicilio",
+        viewProfile: "Ver perfil",
+        noPhoto: "Sin foto",
+        previous: "Anterior",
+        next: "Siguiente",
+        page: "Página",
+        whyThese: "¿Por qué estos proveedores?",
+        whyMatch: "Por qué coincide",
+        memoryReset: "Memoria reiniciada. Podemos empezar de nuevo. ¿Cómo debería llamarte?"
+      },
+      fr: {
+        introName: "Bonjour, je suis là pour vous aider à trouver le bon type de médecin. Avant de commencer, comment dois-je vous appeler ?",
+        introNew: name => `Enchanté, ${name}. Décrivez vos symptômes et je poserai quelques questions de suivi.`,
+        introBack: (name, lastSymptoms) => `Bon retour, ${name}. Je me souviens que vous cherchiez de l’aide pour ${lastSymptoms} la dernière fois. Qu’est-ce qui vous gêne ou vous fait mal maintenant ?`,
+        introBackNoSymptoms: name => `Bon retour, ${name}. Qu’est-ce qui vous gêne ou vous fait mal aujourd’hui ?`,
+        nameSaved: name => `Merci, ${name}. Je m’en souviendrai pour la prochaine fois.`,
+        placeholderName: "Tapez votre nom...",
+        placeholderSymptoms: "Décrivez vos symptômes...",
+        placeholderAnswers: "Répondez aux questions de suivi ici...",
+        send: "Envoyer",
+        thinking: "Réflexion",
+        followupIntro: "Je suis désolé que vous ressentiez cela. Quelques questions rapides m’aideront à mieux orienter les résultats.",
+        recommendationIntro: "Merci. Voici comment j’interprète vos symptômes et les correspondances.",
+        emergency: "Alerte d’urgence",
+        warningContinue: "Vous pouvez continuer, mais des soins urgents peuvent être nécessaires.",
+        careLevel: "Niveau de soins suggéré",
+        summary: "Résumé",
+        providers: "Professionnels suggérés",
+        noMatch: "Je n’ai trouvé aucun professionnel correspondant dans la base de données locale.",
+        city: "Ville",
+        category: "Catégorie",
+        phone: "Téléphone",
+        languages: "Langues",
+        homeService: "Service à domicile",
+        viewProfile: "Voir le profil",
+        noPhoto: "Sans photo",
+        previous: "Précédent",
+        next: "Suivant",
+        page: "Page",
+        whyThese: "Pourquoi ces professionnels ?",
+        whyMatch: "Pourquoi cette correspondance",
+        memoryReset: "Mémoire réinitialisée. Nous pouvons recommencer. Comment dois-je vous appeler ?"
+      },
+      pt: {
+        introName: "Olá, estou aqui para ajudar você a encontrar o tipo certo de médico. Antes de começar, como devo chamar você?",
+        introNew: name => `Prazer, ${name}. Conte quais sintomas está sentindo e farei algumas perguntas.`,
+        introBack: (name, lastSymptoms) => `Bem-vindo de volta, ${name}. Lembro que da última vez você estava procurando ajuda para ${lastSymptoms}. O que está incomodando ou doendo agora?`,
+        introBackNoSymptoms: name => `Bem-vindo de volta, ${name}. O que está incomodando ou doendo hoje?`,
+        nameSaved: name => `Obrigado, ${name}. Vou lembrar disso na próxima vez.`,
+        placeholderName: "Digite seu nome...",
+        placeholderSymptoms: "Conte quais sintomas você está sentindo...",
+        placeholderAnswers: "Responda às perguntas de acompanhamento aqui...",
+        send: "Enviar",
+        thinking: "Pensando",
+        followupIntro: "Sinto muito que você esteja passando por isso. Algumas perguntas rápidas vão me ajudar a orientar melhor os resultados.",
+        recommendationIntro: "Obrigado. Aqui está como estou interpretando seus sintomas e as correspondências.",
+        emergency: "Aviso de emergência",
+        warningContinue: "Você pode continuar, mas atendimento urgente pode ser necessário.",
+        careLevel: "Nível de atendimento sugerido",
+        summary: "Resumo",
+        providers: "Profissionais sugeridos",
+        noMatch: "Não encontrei profissionais correspondentes no banco de dados local.",
+        city: "Cidade",
+        category: "Categoria",
+        phone: "Telefone",
+        languages: "Idiomas",
+        homeService: "Atendimento domiciliar",
+        viewProfile: "Ver perfil",
+        noPhoto: "Sem foto",
+        previous: "Previous",
+        next: "Próxima",
+        page: "Página",
+        whyThese: "Por que estes profissionais?",
+        whyMatch: "Por que combina",
+        memoryReset: "Memória reiniciada. Podemos começar de novo. Como devo chamar você?"
+      }
+    };
+
+    function text() {
+      return UI_TEXT[currentLanguage] || UI_TEXT.en;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function cleanName(value) {
+      const rawName = String(value || "")
+        .trim()
+        .replace(/\s+/g, " ");
+
+      const namePatterns = [
+        /^(?:you can call me|call me|please call me|my name is|i am|i'm|im)\s+(.+)$/i,
+        /^(?:me llamo|mi nombre es|llamame|llámame|puedes llamarme)\s+(.+)$/i,
+        /^(?:je m'appelle|mon nom est|appelez-moi|vous pouvez m'appeler)\s+(.+)$/i,
+        /^(?:me chamo|meu nome e|meu nome é|pode me chamar de|voce pode me chamar de|você pode me chamar de)\s+(.+)$/i
+      ];
+
+      let name = rawName;
+      for (const pattern of namePatterns) {
+        const match = rawName.match(pattern);
+        if (match?.[1]) {
+          name = match[1];
+          break;
+        }
+      }
+
+      return name
+        .replace(/[.!?,;:]+$/g, "")
+        .replace(/\s+(?:please|thanks|thank you|gracias|merci|obrigado|obrigada)$/i, "")
+        .trim()
+        .slice(0, 40);
+    }
+
+    function getMemory() {
+      try {
+        return JSON.parse(localStorage.getItem(MEMORY_KEY)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveMemory(update) {
+      const current = getMemory();
+      localStorage.setItem(MEMORY_KEY, JSON.stringify({ ...current, ...update }));
+    }
+
+    function resetMemory() {
+      localStorage.removeItem(MEMORY_KEY);
+      mode = "name";
+      savedSymptoms = "";
+      generatedQuestions = [];
+      lastAnswerText = "";
+      document.getElementById("chatInput").placeholder = text().placeholderName;
+      addMessage("assistant", escapeHtml(text().memoryReset));
+    }
+
+    function scrollToBottom() {
+      const chat = document.getElementById("chatWindow");
+      chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+    }
+
+    function addMessage(role, html) {
+      const chat = document.getElementById("chatWindow");
+      const row = document.createElement("div");
+      const isAssistant = role.includes("assistant");
+      row.className = `message-row ${role}`;
+      row.innerHTML = `
+        <div class="avatar">${isAssistant ? "AI" : "You"}</div>
+        <div class="bubble">${html}</div>
+      `;
+      chat.appendChild(row);
+      requestAnimationFrame(scrollToBottom);
+    }
+
+    function addTyping() {
+      const html = `
+        <div class="typing-wrap">
+          <span>${escapeHtml(text().thinking)}</span>
+          <span class="dots"><i></i><i></i><i></i></span>
+        </div>
+      `;
+      addMessage("assistant typing-message", html);
+    }
+
+    function removeLastTyping() {
+      const rows = document.querySelectorAll(".message-row.typing-message");
+      const last = rows[rows.length - 1];
+      if (last) last.remove();
+    }
+
+    function getMatchLabel(score, index) {
+      const numericScore = Number(score || 0);
+      if (index === 0 && numericScore >= 20) return "Top Match";
+      if (numericScore >= 20) return "Strong Match";
+      if (numericScore >= 12) return "Good Match";
+      if (numericScore >= 6) return "Related Match";
+      return "Possible Match";
+    }
+
+    function buildRecommendationExplanation(data) {
+      const specialties = data.specialties || [];
+
+      if (data.emergency_detected) {
+        return "I noticed possible warning signs in what you described, so emergency care should come first. I’m still showing related providers nearby for follow-up support.";
+      }
+
+      if (specialties.includes("Otorrinolaringólogos")) {
+        return "I prioritized ENT specialists because your symptoms seem related to the throat, nose, ears, or sinus area. I also considered broader care options if symptoms are mild or unclear.";
+      }
+
+      if (specialties.includes("Cardiólogos")) {
+        return "I prioritized cardiology providers because your symptoms appear related to chest or heart concerns. I also considered general medicine for initial evaluation.";
+      }
+
+      if (specialties.includes("Gastroenterólogos")) {
+        return "I prioritized gastroenterology providers because your symptoms seem related to stomach, digestion, nausea, reflux, or abdominal discomfort.";
+      }
+
+      if (specialties.includes("Neumólogos")) {
+        return "I prioritized lung and breathing specialists because your symptoms may involve cough, breathing, chest congestion, or respiratory discomfort.";
+      }
+
+      return "I ranked these providers based on specialty match, symptom relevance, available location information, and directory profile details.";
+    }
+
+    function buildProviderReason(provider, data) {
+      const reasons = [];
+
+      if ((data.specialties || []).includes(provider.specialty)) {
+        reasons.push("their specialty matches the symptoms you described");
+      }
+
+      const userCity = data.structured_intake?.city || "";
+      if (provider.city && userCity && provider.city.toLowerCase() === userCity.toLowerCase()) {
+        reasons.push(`they are listed in ${provider.city}`);
+      }
+
+      if (provider.home_service === "SI") {
+        reasons.push("they may offer home service");
+      }
+
+      if (provider.phone && provider.phone !== "N/A") {
+        reasons.push("their profile includes contact information");
+      }
+
+      if (!reasons.length) {
+        return "This provider may still be worth reviewing based on the available directory information.";
+      }
+
+      return `${text().whyMatch}: ${reasons.join(", ")}.`;
+    }
+
+    function providerCard(provider, index, data) {
+      const t = text();
+
+      const imageHtml = provider.image_url
+        ? `<img src="${escapeHtml(provider.image_url)}" alt="${escapeHtml(provider.name || "Doctor")}" class="provider-photo" />`
+        : `<div class="provider-photo placeholder">${escapeHtml(t.noPhoto)}</div>`;
+
+      return `
+        <div class="provider-card">
+          <div class="provider-head">
+            <div class="provider-photo-wrapper">${imageHtml}</div>
+            <div class="provider-main">
+              <div class="provider-name">${escapeHtml(provider.name || "Unknown provider")}</div>
+              <div class="provider-specialty">${escapeHtml(provider.specialty || "N/A")}</div>
+            </div>
+            <div class="score-badge">${escapeHtml(getMatchLabel(provider.score, index))}</div>
+          </div>
+
+          <div class="provider-reason">
+            ${escapeHtml(buildProviderReason(provider, data))}
+          </div>
+
+          <div class="provider-meta">
+            <div><strong>${escapeHtml(t.city)}:</strong> ${escapeHtml(provider.city || "N/A")}</div>
+            <div><strong>${escapeHtml(t.category)}:</strong> ${escapeHtml(provider.category || "N/A")}</div>
+            <div><strong>${escapeHtml(t.phone)}:</strong> ${escapeHtml(provider.phone || "N/A")}</div>
+            <div><strong>${escapeHtml(t.languages)}:</strong> ${escapeHtml(provider.languages || "N/A")}</div>
+            <div><strong>${escapeHtml(t.homeService)}:</strong> ${escapeHtml(provider.home_service || "N/A")}</div>
+          </div>
+
+          <a class="profile-btn" href="${escapeHtml(provider.profile_url || "#")}" target="_blank" rel="noopener noreferrer">
+            ${escapeHtml(t.viewProfile)}
+          </a>
+        </div>
+      `;
+    }
+
+    function renderRecommendations(data) {
+      const t = text();
+
+      let html = "";
+
+      if (data.emergency_detected) {
+        html += `
+          <div class="warning-box">
+            <strong>${escapeHtml(t.emergency)}:</strong>
+            <div>${escapeHtml(data.emergency_message || "")}</div>
+          </div>
+        `;
+      }
+
+      html += `
+        <p>${escapeHtml(t.recommendationIntro)}</p>
+
+        <div class="ai-reasoning">
+          <strong>${escapeHtml(t.whyThese)}</strong>
+          <div>${escapeHtml(buildRecommendationExplanation(data))}</div>
+        </div>
+
+        <div class="result-summary">
+          <div><strong>${escapeHtml(t.careLevel)}:</strong> ${escapeHtml(data.care_level || "N/A")}</div>
+          <div><strong>${escapeHtml(t.summary)}:</strong> ${escapeHtml(data.summary || "")}</div>
+        </div>
+
+        <div class="chips">
+          ${(data.specialties || []).map(s => `<span>${escapeHtml(s)}</span>`).join("")}
+        </div>
+
+        <h3>${escapeHtml(t.providers)}</h3>
+      `;
+
+      if (!data.providers || data.providers.length === 0) {
+        html += `<p class="muted">${escapeHtml(t.noMatch)}</p>`;
+      } else {
+        data.providers.forEach((provider, index) => {
+          html += providerCard(provider, index, data);
+        });
+
+        if (data.total_pages > 1) {
+          html += `
+            <div class="pagination">
+              <button ${data.page <= 1 ? "disabled" : ""} onclick="getRecommendations(${data.page - 1})">
+                ${escapeHtml(t.previous)}
+              </button>
+              <span>${escapeHtml(t.page)} ${data.page} / ${data.total_pages}</span>
+              <button ${data.page >= data.total_pages ? "disabled" : ""} onclick="getRecommendations(${data.page + 1})">
+                ${escapeHtml(t.next)}
+              </button>
+            </div>
+          `;
+        }
+      }
+
+      addMessage("assistant", html);
+
+      saveMemory({
+        lastSymptoms: savedSymptoms,
+        lastSpecialties: data.specialties || [],
+        lastCity: data.structured_intake?.city || "",
+        lastVisit: new Date().toISOString()
+      });
+    }
+
+    async function handleSend() {
+      const input = document.getElementById("chatInput");
+      const value = input.value.trim();
+
+      if (!value) return;
+
+      currentLanguage = document.getElementById("languageSelect").value;
+
+      addMessage("user", escapeHtml(value));
+      input.value = "";
+
+      if (mode === "name") {
+        handleName(value);
+      } else if (mode === "symptoms") {
+        savedSymptoms = value;
+        await startFlow(value);
+      } else {
+        lastAnswerText = value;
+        await getRecommendations(1, value);
+      }
+    }
+
+    function handleName(value) {
+      const name = cleanName(value);
+      const safeName = name || "there";
+
+      saveMemory({ name: safeName });
+      mode = "symptoms";
+      document.getElementById("chatInput").placeholder = text().placeholderSymptoms;
+
+      addMessage("assistant", `
+        <p>${escapeHtml(text().nameSaved(safeName))}</p>
+        <p>${escapeHtml(text().introNew(safeName))}</p>
+      `);
+    }
+
+    async function startFlow(symptoms) {
+      addTyping();
+
+      try {
+        const formData = new FormData();
+        formData.append("symptoms", symptoms);
+        formData.append("language", currentLanguage);
+
+        const response = await fetch("/start", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+        removeLastTyping();
+
+        if (data.warning) {
+          addMessage("assistant", `
+            <div class="warning-box">
+              <strong>${escapeHtml(text().emergency)}:</strong>
+              <div>${escapeHtml(data.warning)} ${escapeHtml(text().warningContinue)}</div>
+            </div>
+          `);
+        }
+
+        generatedQuestions = data.questions || [];
+
+        const questionList = generatedQuestions
+          .map(q => `<li>${escapeHtml(q)}</li>`)
+          .join("");
+
+        addMessage("assistant", `
+          <p>${escapeHtml(text().followupIntro)}</p>
+          <ol>${questionList}</ol>
+          <p class="muted">${escapeHtml(text().placeholderAnswers)}</p>
+        `);
+
+        mode = "answers";
+        document.getElementById("chatInput").placeholder = text().placeholderAnswers;
+      } catch (error) {
+        removeLastTyping();
+        console.error("startFlow error:", error);
+        addMessage("assistant", `<p class="warning">${escapeHtml(text().noMatch)}</p>`);
+      }
+    }
+
+    async function getRecommendations(page = 1, answerText = lastAnswerText) {
+      currentPage = page;
+      addTyping();
+
+      const combinedAnswers = generatedQuestions
+        .map(q => `${q} ${answerText}`)
+        .join(". ");
+
+      try {
+        const formData = new FormData();
+        formData.append("language", currentLanguage);
+        formData.append("page", currentPage);
+        formData.append("symptoms", savedSymptoms);
+        formData.append("followup_answers", combinedAnswers);
+
+        const response = await fetch("/recommend", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+        removeLastTyping();
+        renderRecommendations(data);
+
+        mode = "symptoms";
+        document.getElementById("chatInput").placeholder = text().placeholderSymptoms;
+      } catch (error) {
+        removeLastTyping();
+        console.error("recommend error:", error);
+        addMessage("assistant", `<p class="warning">Something went wrong while getting recommendations.</p>`);
+      }
+    }
+
+    function applyLanguage() {
+      currentLanguage = document.getElementById("languageSelect").value;
+
+      let placeholder = text().placeholderSymptoms;
+      if (mode === "name") placeholder = text().placeholderName;
+      if (mode === "answers") placeholder = text().placeholderAnswers;
+
+      document.getElementById("chatInput").placeholder = placeholder;
+      document.getElementById("sendBtn").textContent = text().send;
+    }
+
+    function greetUser() {
+      const memory = getMemory();
+      const name = cleanName(memory.name);
+
+      if (!name) {
+        mode = "name";
+        document.getElementById("chatInput").placeholder = text().placeholderName;
+        addMessage("assistant", escapeHtml(text().introName));
+        return;
+      }
+
+      mode = "symptoms";
+      document.getElementById("chatInput").placeholder = text().placeholderSymptoms;
+
+      const intro = memory.lastSymptoms
+        ? text().introBack(name, memory.lastSymptoms)
+        : text().introBackNoSymptoms(name);
+
+      addMessage("assistant", escapeHtml(intro));
+    }
+
+    document.getElementById("languageSelect").addEventListener("change", applyLanguage);
+
+    document.getElementById("chatInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        handleSend();
+      }
+    });
+
+    applyLanguage();
+    setTimeout(greetUser, 300);
+  </script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Dra. Alexandra Maza de Franco",
+    "specialty": "Dermatólogos",
+    "category": "Especialidades de Medicina",
+    "city": "San Salvador",
+    "languages": ["Español"],
+    "insurance": ["Todas", "ACSA", "ASESUISA"],
+    "payment_methods": ["Efectivo", "Tarjeta"],
+    "home_service": "NO",
+    "profile_url": "/doctor/dra-alexandra-maza-de-franco",
+    "symptom_tags": ["rash", "itching", "skin lesion", "redness", "acne", "eczema"]
+  },
+  {
+    "name": "Dr. Niyme Pantoja de Toledo",
+    "specialty": "Otorrinolaringólogos",
+    "category": "Medicos Cirujanos",
+    "city": "San Salvador",
+    "languages": ["Español", "Inglés"],
+    "insurance": ["Todas", "MAPFRE", "SISA"],
+    "payment_methods": ["Efectivo", "Tarjeta", "Transferencias bancarias"],
+    "home_service": "NO",
+    "profile_url": "/doctor/dra-niyme-pantoja-de-toledo",
+    "symptom_tags": ["sore throat", "ear pain", "sinus pressure", "congestion", "tonsils"]
+  },
+  {
+    "name": "Dr. Emilio Ahues",
+    "specialty": "Neurocirujanos",
+    "category": "Medicos Cirujanos",
+    "city": "San Salvador",
+    "languages": ["Español"],
+    "insurance": ["Todas"],
+    "payment_methods": ["Efectivo"],
+    "home_service": "NO",
+    "profile_url": "/doctor/dr-emilio-ahues",
+    "symptom_tags": ["head injury", "brain lesion", "spine emergency"]
+  },
+  {
+    "name": "Clínica Gástrica Central",
+    "specialty": "Gastroenterólogos",
+    "category": "Especialidades de Medicina",
+    "city": "Santa Tecla",
+    "languages": ["Español"],
+    "insurance": ["Todas", "ASSA", "ASESUISA"],
+    "payment_methods": ["Efectivo", "Tarjeta"],
+    "home_service": "NO",
+    "profile_url": "/clinica/gastrica-central",
+    "symptom_tags": ["stomach pain", "vomiting", "nausea", "diarrhea", "reflux", "abdominal pain"]
+  },
+  {
+    "name": "Centro de Medicina General Escalón",
+    "specialty": "Medicina General",
+    "category": "Especialidades de Medicina",
+    "city": "San Salvador",
+    "languages": ["Español"],
+    "insurance": ["Todas", "AIG", "SISA", "ASESUISA"],
+    "payment_methods": ["Efectivo", "Tarjeta", "Transferencias bancarias"],
+    "home_service": "SI",
+    "profile_url": "/clinica/medicina-general-escalon",
+    "symptom_tags": ["fever", "fatigue", "general pain", "headache", "cough", "body aches"]
+  },
+  {
+    "name": "Unidad de Neumología Santa Ana",
+    "specialty": "Neumólogos",
+    "category": "Especialidades de Medicina",
+    "city": "Santa Ana",
+    "languages": ["Español"],
+    "insurance": ["Todas", "Palig", "ASSA"],
+    "payment_methods": ["Efectivo", "Tarjeta"],
+    "home_service": "NO",
+    "profile_url": "/clinica/neumologia-santa-ana",
+    "symptom_tags": ["cough", "shortness of breath", "wheezing", "chest congestion"]
+  }
+]
